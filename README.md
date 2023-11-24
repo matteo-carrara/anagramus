@@ -1,5 +1,6 @@
 # anagramus
 Quick anagram generator
+_by matteo carrara_
 
 ## What is an anagram?
 Regarding this software, an anagram is defined as follows:
