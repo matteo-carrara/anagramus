@@ -7,6 +7,9 @@
 # Un rekt a: birbantelli, zazinte, il tocio
 # :P
 	
+from multiprocessing.spawn import old_main_modules
+from pickle import LIST
+from re import I, U
 from sys import argv, stdout
 import time
 import json
@@ -31,6 +34,74 @@ By matteo carrara
 Windows edition
 
 """
+
+# list_base = current set of word that will compose a sentence
+# list_addon: list of all words that can be added
+
+def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
+	#print("FN DEPTH = ", depth)
+	#print("Entering recursive add with base:")
+	for w in list_base:
+		#print("-", w[1])
+		pass
+		
+	DELTA_SRC = 0
+	LIST_BASE_LEN = 0
+	
+	for w in list_base:
+		LIST_BASE_LEN = LIST_BASE_LEN + len(w[1])
+	
+	DELTA_SRC = ANAGRAM_LEN - LIST_BASE_LEN
+	#print("Base len", LIST_BASE_LEN, "Anagram len", ANAGRAM_LEN, "DELTA", DELTA_SRC)
+	
+	if(DELTA_SRC < 1):
+		#print("***** VALID ANAGRAM FOUND, returning")
+		out = ""
+		wl = []
+		for w in list_base:
+			out = out+ " " + w[1] + " "
+			wl.append(w[1])
+		#print(out)
+		wl_sort = sorted(wl, key=len, reverse=True)
+		return wl_sort
+	
+	#print("Building freq list for input")
+	p = {}
+	for w in lower_alpha:
+		p[w] = 0
+		
+	for w in list_base:
+		for ch in w[0].keys():
+			p[ch] = p[ch] + w[0][ch]
+
+	#print("List built")
+	#print(p)
+	
+	# Cycle from 1 to DELTA_SRC
+	out = []
+	for my_idx in range(1, DELTA_SRC+1):
+		#print("Searching words for lenght", my_idx)
+		if my_idx in int_k:
+			for test in good_words[str(my_idx)]:
+				#print("testing", test[1], "-depth", depth)
+							
+				good_add = True
+				for ch in INPUT_FR.keys():
+					if test[0][ch]+p[ch] > INPUT_FR[ch]:
+						#print("Failed on char", ch)
+						good_add = False
+						break
+					else:
+						pass
+						
+				if(good_add == True):
+					#print("Word is good to add", test[1])
+					#print("MAKING A RECURSIVE CALL -from depth", depth)
+					nl = list_base
+					nl = nl + [test]
+					out = recursive_add(nl, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth+1)
+	
+	return out
 
 
 def clear_screen():
@@ -166,7 +237,7 @@ def main():
 	print("")
 	
 	while True:
-		good_words_idx = []
+		good_words = {}
 		testing = 0
 		delta = -1
 		similar_idx = -1
@@ -178,6 +249,7 @@ def main():
 		src_str = only_alpha(src_str).lower()
 		INPUT_FR = calc_freq(src_str)
 		
+		print("Looking for whole-word anagrams...")
 		for w in freq_words:
 			is_good = True
 	
@@ -190,14 +262,68 @@ def main():
 			if(is_good):
 				if(len(w[1]) > 0):
 					#print("Test passed",  w[1])
-					good_words_idx.append([testing, len(w[1])])
+					#good_words_idx.append([testing, len(w[1])])
+					if(str(len(w[1])) in good_words.keys()):
+						good_words[str(len(w[1]))].append(w)
+					else:
+						good_words[str(len(w[1]))] = [w]
 					if(len(w[1]) == len(src_str)) and(w[1] != src_str):
 						print("WORD FOUND: ", w[1])
 	
 			testing = testing +1
 		
-		print("")
-	
+		print("\nTrying to find words to form a sentence...")
+		#print("Available lenght:")
+		k = list(good_words.keys())
+		int_k = []
+		
+		for elem in k:
+			int_k.append(int(elem))
+
+		int_k.sort()
+		int_k.reverse()
+		
+		#print(int_k)
+		
+		ANAGRAM_LEN = len(src_str)
+		#print("SOURCE -", src_str, "- len", ANAGRAM_LEN)
+		
+		run = 0
+		LIMIT = 6
+		results = []
+		for l in int_k:
+			run = run +1
+			if (run == LIMIT):
+				#print("DEBUG execution STOPPED (run =", LIMIT,")")
+				#break
+				pass
+			
+			DELTA_SRC = ANAGRAM_LEN - l
+			#print("Words for lenght", l)
+			#print("Delta from source",  DELTA_SRC)
+			
+			if DELTA_SRC < 1:
+				continue
+			
+			
+			for p in good_words[str(l)]:
+				#print(p[1])
+				#print("Looking for a word to add...")
+				rl = recursive_add([p], good_words, ANAGRAM_LEN, int_k, INPUT_FR)
+				if(len(rl) != 0):
+					#print("Got results")
+					if rl in results:
+						#print("Already existing")
+						pass
+					else:
+						#print(rl)
+						results.append(rl)
+						#print("Got result")
+				
+		s_res = sorted(results, key=len)
+		print(s_res)
+			
+
 	
 
 
