@@ -12,11 +12,29 @@ import time
 import json
 import os
 
+
 FREQ_EXPORT_FILE = "./dict-freq.json"
 dict_f = "./italiano.txt"
 lower_alpha = list(map(chr, range(97, 123)))
 accenti_ita = ['à','á','è','é','ì','í','ó','ò','ù','ú']
 lower_alpha = lower_alpha + accenti_ita
+
+logo = """ 
+   __ _ _ __   __ _  __ _ _ __ __ _ _ __ ___  _   _ ___ 
+  / _` | '_ \ / _` |/ _` | '__/ _` | '_ ` _ \| | | / __|
+ | (_| | | | | (_| | (_| | | | (_| | | | | | | |_| \__ \\
+  \__,_|_| |_|\__,_|\__, |_|  \__,_|_| |_| |_|\__,_|___/
+                     __/ |                              
+                    |___/        
+		    
+By matteo carrara
+Windows edition
+
+"""
+
+
+def clear_screen():
+	os.system("cls")
 
 def calc_freq(in_s):
 	out = {}
@@ -41,137 +59,149 @@ def only_alpha(src_str):
 	return out
 
 
-if len(argv) != 2:
-	print("Usage:", argv[0], "\"word or phrase inside quotation marks\"")
-	exit(1)
+def main():
+	clear_screen()
+	print(logo)
+	
+	corr_words = []
+	freq_words = []
 
-src_str = argv[1].replace(" ", "") #remove spaces
-src_str = only_alpha(src_str).lower()
+	EXISTING_FREQ = False
+	USE_FREQ_FILE = False
 
-corr_words = []
-freq_words = []
-
-EXISTING_FREQ = False
-USE_FREQ_FILE = False
-
-if(USE_FREQ_FILE):
-	if os.path.exists(FREQ_EXPORT_FILE):
-		print("Trying to load frequencies from file...")
-		EXISTING_FREQ = True
-		try:
-			with open(FREQ_EXPORT_FILE, 'r') as file:
-				print("Starting loading from file")
-				start_time = time.time()
-				freq_words = json.load(file)
-				end_time = time.time()
-				print("Done")
-				elapsed_time = end_time - start_time
-				print(f"Elapsed time: {elapsed_time} seconds")
-		except IOError:
-			print("Error reading from the file.")
-			exit(1)
-		except json.JSONDecodeError:
-			print("Error decoding JSON.")
-			exit(1)
-	else:
-		print(f'The file {FREQ_EXPORT_FILE} does not exist.')
-
-
-if(not EXISTING_FREQ) or (not USE_FREQ_FILE):
-	start_time = time.time()
-	print("Loading dictionary")
-	i = 0
-	with open(dict_f, 'rb') as f:
-		for line_bytes in f:
+	if(USE_FREQ_FILE):
+		if os.path.exists(FREQ_EXPORT_FILE):
+			print("Trying to load frequencies from file...")
+			EXISTING_FREQ = True
 			try:
-				line = line_bytes.decode('utf-8')
-				corr_words.append(line.lower().replace("\n", ""))
-			except UnicodeDecodeError as e:
-				print(f"\nError decoding line in file: {e}")
+				with open(FREQ_EXPORT_FILE, 'r') as file:
+					print("Starting loading from file")
+					start_time = time.time()
+					freq_words = json.load(file)
+					end_time = time.time()
+					print("Done")
+					elapsed_time = end_time - start_time
+					print(f"Elapsed time: {elapsed_time} seconds")
+			except IOError:
+				print("Error reading from the file.")
+				exit(1)
+			except json.JSONDecodeError:
+				print("Error decoding JSON.")
+				exit(1)
+		else:
+			print(f'The file {FREQ_EXPORT_FILE} does not exist.')
+
+
+	if(not EXISTING_FREQ) or (not USE_FREQ_FILE):
+		start_time = time.time()
+		print("Loading dictionary...")
 		
-			i = i+1
-			#stdout.write("\rProgress "+str("{:,.0f}".format(i)))
+		i = 0
+		with open(dict_f, 'rb') as f:
+			for line_bytes in f:
+				try:
+					line = line_bytes.decode('utf-8')
+					corr_words.append(line.lower().replace("\n", ""))
+				except UnicodeDecodeError as e:
+					print(f"\nError decoding line in file: {e}")
+		
+				i = i+1
+				#stdout.write("\rProgress "+str("{:,.0f}".format(i)))
+				#stdout.flush()
+
+		end_time = time.time()
+		print("Dict loaded, rows = ", len(corr_words))
+		elapsed_time = end_time - start_time
+		print(f"Elapsed time: {elapsed_time} seconds")
+
+
+		print("Calculating frequencies for dictionary...")
+		print("(Words with not allowed symbols will be skipped)")
+		print("This operation MAY TAKE a few minutes. NO MESSAGES will be shown on the screen to improve performance.")
+		start_time = time.time()
+
+		i = 0
+		for word in corr_words:
+			valid_word = True
+			tmpfreq  = {}
+			for ch in lower_alpha:
+				tmpfreq[ch] = 0
+	
+			for ch in word:
+				if not (ch in lower_alpha):
+					#print("FAILURE: char >", ch, "> in word >", word, "> not allowed, skipped")
+					valid_word = False
+				else:
+					tmpfreq[ch] = tmpfreq[ch] + 1
+			if(valid_word):		
+				freq_words.append([tmpfreq, word])
+				#print("\nWORD -", word, "- FREQ -", tmpfreq, "-")
+			i = i + 1
+	
+			#stdout.write("\rProgress "+str("{:,.0f}".format(i))+"/"+str("{:,.0f}".format(len(corr_words))))
 			#stdout.flush()
 
-	end_time = time.time()
-	print("Dict loaded, rows = ", len(corr_words))
-	elapsed_time = end_time - start_time
-	print(f"Elapsed time: {elapsed_time} seconds")
-
-
-	print("Calculating frequencies for dictionary...")
-	print("Words with not allowed symbols will be skipped")
-	start_time = time.time()
-
-	i = 0
-	for word in corr_words:
-		valid_word = True
-		tmpfreq  = {}
-		for ch in lower_alpha:
-			tmpfreq[ch] = 0
-	
-		for ch in word:
-			if not (ch in lower_alpha):
-				#print("FAILURE: char >", ch, "> in word >", word, "> not allowed, skipped")
-				valid_word = False
-			else:
-				tmpfreq[ch] = tmpfreq[ch] + 1
-		if(valid_word):		
-			freq_words.append([tmpfreq, word])
-			#print("\nWORD -", word, "- FREQ -", tmpfreq, "-")
-		i = i + 1
-	
-		#stdout.write("\rProgress "+str("{:,.0f}".format(i))+"/"+str("{:,.0f}".format(len(corr_words))))
-		#stdout.flush()
-
-	end_time = time.time()
-	print("Done")
-	elapsed_time = end_time - start_time
-	print(f"Elapsed time: {elapsed_time} seconds")
-
-	if (not os.path.exists(FREQ_EXPORT_FILE)) and USE_FREQ_FILE:
-		start_time = time.time()
-		print("Dumping frequencies to file...")
-		try:
-			with open(FREQ_EXPORT_FILE, 'w') as file:
-				json.dump(freq_words, file)
-		except IOError as e:
-			# Code to execute if an IOError occurs
-			print(f"Error writing to the file: {e}")
-			exit(1)
-    
 		end_time = time.time()
 		print("Done")
 		elapsed_time = end_time - start_time
 		print(f"Elapsed time: {elapsed_time} seconds")
-	
-print("Starting to search for words")
 
-while True:
-	good_words_idx = []
-	INPUT_FR = calc_freq(src_str)
-	testing = 0
-	delta = -1
-	similar_idx = -1
-
-	for w in freq_words:
-		is_good = True
+		if (not os.path.exists(FREQ_EXPORT_FILE)) and USE_FREQ_FILE:
+			start_time = time.time()
+			print("Dumping frequencies to file...")
+			try:
+				with open(FREQ_EXPORT_FILE, 'w') as file:
+					json.dump(freq_words, file)
+			except IOError as e:
+				# Code to execute if an IOError occurs
+				print(f"Error writing to the file: {e}")
+				exit(1)
+    
+			end_time = time.time()
+			print("Done")
+			elapsed_time = end_time - start_time
+			print(f"Elapsed time: {elapsed_time} seconds")
 	
-		for letter in INPUT_FR.keys():
-			if w[0][letter] > INPUT_FR[letter]:
-				is_good = False
-				#print("Failed: letter -", letter, "- is -",w[0][letter], "- where max is -", INPUT_FR[letter], "-")
-				break
+	#print("Starting to search for words")
+	print("")
+	
+	while True:
+		good_words_idx = []
+		testing = 0
+		delta = -1
+		similar_idx = -1
+
+		src_str = input("Write something to find anagrams: ")
+		print("LOOKING FOR ANAGRAMS OF <"+src_str+">...\n")
+
+		src_str.replace(" ", "")
+		src_str = only_alpha(src_str).lower()
+		INPUT_FR = calc_freq(src_str)
 		
-		if(is_good):
-			#print("Test passed",  w[1])
-			good_words_idx.append(testing)
-			if(len(w[1]) == len(src_str)) and(w[1] != src_str):
-				print("COMPLETE ANAGRAM FOUND!!!!!!", w[1])
+		for w in freq_words:
+			is_good = True
 	
-		testing = testing +1
+			for letter in INPUT_FR.keys():
+				if w[0][letter] > INPUT_FR[letter]:
+					is_good = False
+					#print("Failed: letter -", letter, "- is -",w[0][letter], "- where max is -", INPUT_FR[letter], "-")
+					break
 		
-	src_str = input("Insert another word: ").replace(" ", "")
-	src_str = only_alpha(src_str).lower()
+			if(is_good):
+				if(len(w[1]) > 0):
+					#print("Test passed",  w[1])
+					good_words_idx.append([testing, len(w[1])])
+					if(len(w[1]) == len(src_str)) and(w[1] != src_str):
+						print("WORD FOUND: ", w[1])
+	
+			testing = testing +1
+		
+		print("")
+	
+	
 
-print("Done, exiting")
+
+	print("Done, exiting")
+	
+
+main()
