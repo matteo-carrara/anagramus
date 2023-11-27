@@ -242,10 +242,15 @@ def main():
 		delta = -1
 		similar_idx = -1
 
-		src_str = input("Write something to find anagrams: ")
+		src_str = input("Write something to find anagrams (max 10 char): ")
 		print("LOOKING FOR ANAGRAMS OF <"+src_str+">...\n")
 
 		src_str.replace(" ", "")
+		
+		if(len(src_str) > 10):
+			print("String too long, try again")
+			continue
+		
 		src_str = only_alpha(src_str).lower()
 		INPUT_FR = calc_freq(src_str)
 		
