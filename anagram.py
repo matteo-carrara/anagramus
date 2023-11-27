@@ -14,7 +14,7 @@ from sys import argv, stdout
 import time
 import json
 import os
-
+import numpy as np
 
 FREQ_EXPORT_FILE = "./dict-freq.json"
 dict_f = "./italiano.txt"
@@ -67,6 +67,7 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 	
 	#print("Building freq list for input")
 	p = {}
+	a = []
 	for w in lower_alpha:
 		p[w] = 0
 		
@@ -74,6 +75,10 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 		for ch in w[0].keys():
 			p[ch] = p[ch] + w[0][ch]
 
+	for ch in p.keys():
+		a.append(p[ch])
+	
+	a_numpy = np.array(a)
 	#print("List built")
 	#print(p)
 	
@@ -98,15 +103,27 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 		if my_idx in int_k:
 			for test in good_words[str(my_idx)]:
 				#print("testing", test[1], "-depth", depth)
-							
-				good_add = True
-				for ch in INPUT_FR.keys():
-					if test[0][ch]+p[ch] > INPUT_FR[ch]:
-						#print("Failed on char", ch)
-						good_add = False
-						break
-					else:
-						pass
+				
+				try:
+					good_add = True
+					testing = a_numpy + test[2]
+					less_equal = testing <= INPUT_FR
+					# 2 3 0 1 = 6 
+					# 1 5 0 0 = 6
+					# 1 -2 0 1 = 4
+					good = np.all(less_equal)
+				except:
+					print("A_NUMPY", a_numpy)
+					print("test[2]", test[2])
+					exit(1)
+				#for ch in INPUT_FR.keys():
+				#	if test[0][ch]+p[ch] > INPUT_FR[ch]:
+				#		#print("Failed on char", ch)
+				#		good_add = False
+				#		break
+				#	else:
+				#		pass
+				
 						
 				if(good_add == True):
 					#print("Word is good to add", test[1])
@@ -222,8 +239,12 @@ def main():
 					valid_word = False
 				else:
 					tmpfreq[ch] = tmpfreq[ch] + 1
-			if(valid_word):		
-				freq_words.append([tmpfreq, word])
+			if(valid_word):
+				tmpnumpy = []
+				for ch in tmpfreq.keys():
+					tmpnumpy.append(tmpfreq[ch])
+					
+				freq_words.append([tmpfreq, word, np.array(tmpnumpy)])
 				#print("\nWORD -", word, "- FREQ -", tmpfreq, "-")
 			i = i + 1
 	
@@ -274,6 +295,11 @@ def main():
 		INPUT_FR = calc_freq(src_str)
 		
 		print("Looking for whole-word anagrams...")
+		tmp_numpy = []
+		for k in INPUT_FR.keys():
+			tmp_numpy.append(INPUT_FR[k])
+		numpy_INPUT_FR = np.array(tmp_numpy)
+		
 		for w in freq_words:
 			is_good = True
 	
@@ -336,7 +362,7 @@ def main():
 			for p in good_words[str(l)]:
 				#print(p[1])
 				#print("Looking for a word to add...")
-				rl = recursive_add([p], good_words, ANAGRAM_LEN, int_k, INPUT_FR)
+				rl = recursive_add([p], good_words, ANAGRAM_LEN, int_k, numpy_INPUT_FR)
 				#print("MAIN: function left")
 				if(len(rl) != 0):
 					#print("Got results")
