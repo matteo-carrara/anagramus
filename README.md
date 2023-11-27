@@ -3,7 +3,7 @@ Quick anagram generator
 _by Matteo Carrara_
 
 # How to run
-Clone/download the repository, then you shall run
+Clone/download the repository, then you should run
 
 ```
  python .\anagram.py
