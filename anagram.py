@@ -77,9 +77,23 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 	#print("List built")
 	#print(p)
 	
-	# Cycle from 1 to DELTA_SRC
+
 	out = []
+	#print("***************BASE LEN", LIST_BASE_LEN)
+	s = ""
+	for w in list_base:
+		s = s + w[1]
+		pass
+	#print(">>>>>>>>", s)
+	if(LIST_BASE_LEN < ANAGRAM_LEN/2):
+		print("**********LEAVING EARLY***************")
+		return out
+	
+	# Cycle from 1 to DELTA_SRC
 	for my_idx in range(1, DELTA_SRC+1):
+		tmp = DELTA_SRC - my_idx + 1
+		my_idx = tmp
+		
 		#print("Searching words for lenght", my_idx)
 		if my_idx in int_k:
 			for test in good_words[str(my_idx)]:
@@ -99,7 +113,11 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 					#print("MAKING A RECURSIVE CALL -from depth", depth)
 					nl = list_base
 					nl = nl + [test]
-					out = recursive_add(nl, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth+1)
+					tmpout = recursive_add(nl, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth+1)
+					if(len(tmpout)!= 0):
+						if(not (tmpout in out)):
+							out.append(tmpout)
+					#print("**GOT RETURN at depth", depth, "-", out)
 	
 	return out
 
@@ -242,12 +260,13 @@ def main():
 		delta = -1
 		similar_idx = -1
 
-		src_str = input("Write something to find anagrams (max 10 char): ")
+		INPUT_LIMIT = 12
+		src_str = input("Write something to find anagrams (max " + str(INPUT_LIMIT) + " char): ")
 		print("LOOKING FOR ANAGRAMS OF <"+src_str+">...\n")
 
 		src_str.replace(" ", "")
 		
-		if(len(src_str) > 10):
+		if(len(src_str) > INPUT_LIMIT):
 			print("String too long, try again")
 			continue
 		
@@ -307,6 +326,9 @@ def main():
 			#print("Words for lenght", l)
 			#print("Delta from source",  DELTA_SRC)
 			
+			if(l < len(src_str)/2):
+				break
+			
 			if DELTA_SRC < 1:
 				continue
 			
@@ -315,18 +337,20 @@ def main():
 				#print(p[1])
 				#print("Looking for a word to add...")
 				rl = recursive_add([p], good_words, ANAGRAM_LEN, int_k, INPUT_FR)
+				#print("MAIN: function left")
 				if(len(rl) != 0):
 					#print("Got results")
-					if rl in results:
-						#print("Already existing")
-						pass
-					else:
-						#print(rl)
-						results.append(rl)
-						#print("Got result")
+					for elem in rl:
+						#print(elem)
+						if elem in results:
+							print(">>>>>>>>>> FAILURE Already existing")
+							pass
+						else:
+							results.append(elem)
+							#print("Got result")
 				
-		s_res = sorted(results, key=len)
-		print(s_res)
+		s_res = sorted(results, key=len, reverse=True)
+		print("Found ", len(s_res), "possible sets of words to form a sentence. (FIXME not shown for perfomance))")
 			
 
 	
