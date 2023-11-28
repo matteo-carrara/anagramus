@@ -7,15 +7,14 @@
 # Un rekt a: birbantelli, zazinte, il tocio
 # :P
 	
-from multiprocessing.spawn import old_main_modules
-from pickle import LIST
-from re import I, U
+import threading
 from sys import argv, stdout
 import time
 import json
 import os
+from queue import Queue
 
-
+CALC_DICT_FREQ_THREADS = 8
 FREQ_EXPORT_FILE = "./dict-freq.json"
 dict_f = "./italiano.txt"
 lower_alpha = list(map(chr, range(97, 123)))
@@ -35,8 +34,35 @@ Windows edition
 
 """
 
-# list_base = current set of word that will compose a sentence
-# list_addon: list of all words that can be added
+def calc_dict_freq(corr_words, queue):
+	#print("INSIDE THREAD", threading.current_thread().name)
+	#print("LEN of input:", len(corr_words))
+	i = 0
+	freq_words = []
+	for word in corr_words:
+		valid_word = True
+		tmpfreq  = {}
+		for ch in lower_alpha:
+			tmpfreq[ch] = 0
+	
+		for ch in word:
+			if not (ch in lower_alpha):
+				#print("FAILURE: char >", ch, "> in word >", word, "> not allowed, skipped")
+				valid_word = False
+			else:
+				tmpfreq[ch] = tmpfreq[ch] + 1
+		if(valid_word):		
+			freq_words.append([tmpfreq, word])
+			#print("\nWORD -", word, "- FREQ -", tmpfreq, "-")
+		i = i + 1
+	
+		#stdout.write("\rProgress "+str("{:,.0f}".format(i))+"/"+str("{:,.0f}".format(len(corr_words))))
+		#stdout.flush()
+
+	#print("THREAD", threading.current_thread().name, "RETURN SIZE", len(freq_words))
+	#print("THREAD LEFT", threading.current_thread().name)
+	queue.put(freq_words)
+
 
 def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 	#print("FN DEPTH = ", depth)
@@ -79,12 +105,7 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 	
 
 	out = []
-	#print("***************BASE LEN", LIST_BASE_LEN)
-	s = ""
-	for w in list_base:
-		s = s + w[1]
-		pass
-	#print(">>>>>>>>", s)
+
 	if(LIST_BASE_LEN < ANAGRAM_LEN/2):
 		print("**********LEAVING EARLY***************")
 		return out
@@ -93,6 +114,18 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 	for my_idx in range(1, DELTA_SRC+1):
 		tmp = DELTA_SRC - my_idx + 1
 		my_idx = tmp
+
+		if (my_idx < DELTA_SRC/2):
+			#print("Skipping: DELTA_SRC = ", DELTA_SRC, "IDX = ", my_idx)
+			#print("***************BASE LEN", LIST_BASE_LEN)
+			s = ""
+			for w in list_base:
+				s = s + w[1]
+				pass
+			#print(">>>>>>>>", s)
+			#break
+			pass
+			# FIXME!!!!
 		
 		#print("Searching words for lenght", my_idx)
 		if my_idx in int_k:
@@ -125,6 +158,7 @@ def recursive_add(list_base, good_words, ANAGRAM_LEN, int_k, INPUT_FR, depth=0):
 def clear_screen():
 	os.system("cls")
 
+
 def calc_freq(in_s):
 	out = {}
 	for ch in lower_alpha:
@@ -138,7 +172,6 @@ def calc_freq(in_s):
 			exit(1)
 	return out
 	
-
 
 def only_alpha(src_str):
 	out = ""
@@ -203,37 +236,55 @@ def main():
 		elapsed_time = end_time - start_time
 		print(f"Elapsed time: {elapsed_time} seconds")
 
-
+		##################
 		print("Calculating frequencies for dictionary...")
+		print("USING", CALC_DICT_FREQ_THREADS, "THREADS")
 		print("(Words with not allowed symbols will be skipped)")
 		print("This operation MAY TAKE a few minutes. NO MESSAGES will be shown on the screen to improve performance.")
+		
+		dict_thread_pool = []
+		queue_pool = []
+		#print("Dict len", len(corr_words))
+		#print("Threads", CALC_DICT_FREQ_THREADS)
+		
+		DEBUG_slice_sum = 0
+		for i in range(CALC_DICT_FREQ_THREADS):
+			slice_start = int(i*len(corr_words)/CALC_DICT_FREQ_THREADS)
+			slice_end = int((i+1)*len(corr_words)/CALC_DICT_FREQ_THREADS)
+			DEBUG_sl_el = slice_end - slice_start
+			DEBUG_slice_sum = DEBUG_slice_sum + DEBUG_sl_el
+			
+			#print("Thread", i,": slice start", slice_start, "to end", slice_end)
+			
+			tmpq =  Queue()
+			dict_thread_pool.append(threading.Thread(target=calc_dict_freq, args=(corr_words[slice_start:slice_end], tmpq), name="Thread-"+str(i)))
+			queue_pool.append(tmpq)
+		
+		#print("DEBUG: sliced elemnts", DEBUG_slice_sum)
+		#print("DICT SIZE", len(corr_words))
 		start_time = time.time()
+		for t in dict_thread_pool:
+			t.start()
 
-		i = 0
-		for word in corr_words:
-			valid_word = True
-			tmpfreq  = {}
-			for ch in lower_alpha:
-				tmpfreq[ch] = 0
-	
-			for ch in word:
-				if not (ch in lower_alpha):
-					#print("FAILURE: char >", ch, "> in word >", word, "> not allowed, skipped")
-					valid_word = False
-				else:
-					tmpfreq[ch] = tmpfreq[ch] + 1
-			if(valid_word):		
-				freq_words.append([tmpfreq, word])
-				#print("\nWORD -", word, "- FREQ -", tmpfreq, "-")
-			i = i + 1
-	
-			#stdout.write("\rProgress "+str("{:,.0f}".format(i))+"/"+str("{:,.0f}".format(len(corr_words))))
-			#stdout.flush()
+		for t in dict_thread_pool:
+			t.join()
+			
+		#print("All thread left")
 
+		for q in queue_pool:
+			freq_words = freq_words + q.get()
+			
+		#print("Total freq words in MAIN", len(freq_words))
 		end_time = time.time()
 		print("Done")
 		elapsed_time = end_time - start_time
 		print(f"Elapsed time: {elapsed_time} seconds")
+		
+		#print("DEBUG: exiting")
+		#exit(0)
+
+		#####################
+		
 
 		if (not os.path.exists(FREQ_EXPORT_FILE)) and USE_FREQ_FILE:
 			start_time = time.time()
