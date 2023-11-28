@@ -15,6 +15,7 @@ import json
 import os
 from queue import Queue
 
+CALC_THREAD = 8
 CALC_DICT_FREQ_THREADS = 8
 FREQ_EXPORT_FILE = "./dict-freq.json"
 dict_f = "italiano.txt"
@@ -185,6 +186,28 @@ def only_alpha(src_str):
 	return out
 
 
+def create_sent(base_words, idx_from, idx_to, good_words, ANAGRAM_LEN, int_k, INPUT_FR, outq):
+	#print("INSIDE THREAD", threading.current_thread().name)
+	#print(">>THREAD", threading.current_thread().name, ": len base words = ", len(base_words), "idx_from, idx_to:", idx_from, idx_to)
+	results = []
+	for i in range(idx_from, idx_to):
+		rl = recursive_add([base_words[i]], good_words, ANAGRAM_LEN, int_k, INPUT_FR)
+		#print("MAIN: function left")
+		if(len(rl) != 0):
+			#print("Got results")
+			for elem in rl:
+				#print(elem)
+				if elem in results:
+					print(">>>>>>>>>> FAILURE Already existing")
+					pass
+				else:
+					results.append(elem)
+					#print("Got result")
+	#print(">>THREAD", threading.current_thread().name, ": leaving")
+	outq.put(results)
+
+
+
 def main():
 	clear_screen()
 	print(logo)
@@ -312,6 +335,7 @@ def main():
 	#print("Starting to search for words")
 	print("")
 	
+	good_counter = 0
 	while True:
 		good_words = {}
 		testing = 0
@@ -319,14 +343,16 @@ def main():
 		similar_idx = -1
 
 		INPUT_LIMIT = 12
-		src_str = input("Write something to find anagrams (max " + str(INPUT_LIMIT) + " char): ")
+		src_str = input("Write something to find anagrams: ")
 		print("LOOKING FOR ANAGRAMS OF <"+src_str+">...\n")
 
 		src_str.replace(" ", "")
 		
-		if(len(src_str) > INPUT_LIMIT):
-			print("String too long, try again")
-			continue
+		print(">>>> INPUT LEN = ", len(src_str))
+		
+		#if(len(src_str) > INPUT_LIMIT):
+			#print("String too long, try again")
+			#continue
 		
 		src_str = only_alpha(src_str).lower()
 		INPUT_FR = calc_freq(src_str)
@@ -343,6 +369,7 @@ def main():
 		
 			if(is_good):
 				if(len(w[1]) > 0):
+					good_counter = good_counter +1
 					#print("Test passed",  w[1])
 					#good_words_idx.append([testing, len(w[1])])
 					if(str(len(w[1])) in good_words.keys()):
@@ -354,6 +381,7 @@ def main():
 	
 			testing = testing +1
 		
+		#print("Good words found", good_counter)
 		print("\nTrying to find words to form a sentence...")
 		#print("Available lenght:")
 		k = list(good_words.keys())
@@ -373,7 +401,10 @@ def main():
 		run = 0
 		LIMIT = 6
 		results = []
+		sorted_list = []
+		
 		for l in int_k:
+
 			run = run +1
 			if (run == LIMIT):
 				#print("DEBUG execution STOPPED (run =", LIMIT,")")
@@ -390,22 +421,45 @@ def main():
 			if DELTA_SRC < 1:
 				continue
 			
+			sorted_list = sorted_list + good_words[str(l)]
+		
+################################################################################
+		th_p = []
+		q_p = []
+
+		DEBUG_slice_sum2 = 0
+		for i in range(CALC_THREAD):
+			slice_start = int(i*len(sorted_list)/CALC_THREAD)
+			slice_end = int((i+1)*len(sorted_list)/CALC_THREAD)
+			DEBUG_sl_el = slice_end - slice_start
+			DEBUG_slice_sum2 = DEBUG_slice_sum2 + DEBUG_sl_el
 			
-			for p in good_words[str(l)]:
-				#print(p[1])
-				#print("Looking for a word to add...")
-				rl = recursive_add([p], good_words, ANAGRAM_LEN, int_k, INPUT_FR)
-				#print("MAIN: function left")
-				if(len(rl) != 0):
-					#print("Got results")
-					for elem in rl:
-						#print(elem)
-						if elem in results:
-							print(">>>>>>>>>> FAILURE Already existing")
-							pass
-						else:
-							results.append(elem)
-							#print("Got result")
+			#print("Thread", i,": slice start", slice_start, "to end", slice_end)
+			
+			tmpq =  Queue()
+			th_p.append(threading.Thread(target=create_sent, args=(sorted_list, slice_start, slice_end, good_words, ANAGRAM_LEN, int_k, INPUT_FR, tmpq), name="Thread-"+str(i)))
+			q_p.append(tmpq)
+		
+		#print("DEBUG: sliced elemnts", DEBUG_slice_sum2)
+		#print("ORIGINAL SIZE", len(sorted_list))
+		start_time = time.time()
+		for t in th_p:
+			t.start()
+		
+		print("MAIN: waiting for", CALC_THREAD, "thread to leave")
+		left = 0
+		for t in th_p:
+			t.join()
+			left = left + 1
+			print("MAIN: thread still running = ", CALC_THREAD - left)
+			
+		print("MAIN: All thread left")
+
+		out = []
+		for q in q_p:
+			out = out + q.get()
+		results = out
+################################################################################
 				
 		s_res = sorted(results, key=len, reverse=True)
 		print("Found ", len(s_res), "possible sets of words to form a sentence. (FIXME not shown for perfomance))")
