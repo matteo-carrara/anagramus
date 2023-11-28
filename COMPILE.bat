@@ -1,0 +1,1 @@
+pyinstaller --onefile --add-data "italiano.txt;." anagram.py

@@ -9,6 +9,7 @@
 	
 import threading
 from sys import argv, stdout
+import sys
 import time
 import json
 import os
@@ -16,7 +17,7 @@ from queue import Queue
 
 CALC_DICT_FREQ_THREADS = 8
 FREQ_EXPORT_FILE = "./dict-freq.json"
-dict_f = "./italiano.txt"
+dict_f = "italiano.txt"
 lower_alpha = list(map(chr, range(97, 123)))
 accenti_ita = ['à','á','è','é','ì','í','ó','ò','ù','ú']
 lower_alpha = lower_alpha + accenti_ita
@@ -33,6 +34,9 @@ By matteo carrara
 Windows edition
 
 """
+
+
+
 
 def calc_dict_freq(corr_words, queue):
 	#print("INSIDE THREAD", threading.current_thread().name)
@@ -219,7 +223,10 @@ def main():
 		print("Loading dictionary...")
 		
 		i = 0
-		with open(dict_f, 'rb') as f:
+		# Example usage
+		script_dir = os.path.dirname(os.path.abspath(__file__))
+		bundled_file_path = os.path.join(script_dir, dict_f)
+		with open(bundled_file_path, 'rb') as f:
 			for line_bytes in f:
 				try:
 					line = line_bytes.decode('utf-8')
