@@ -7,6 +7,7 @@
 # Un rekt a: birbantelli, zazinte, il tocio
 # :P
 	
+import chunk
 import threading
 from sys import argv, stdout
 import sys
@@ -14,7 +15,10 @@ import time
 import json
 import os
 from queue import Queue
+import math
 
+# words to analyze per thread in sentences generation
+CHUNK_SIZE = 50
 CALC_THREAD = 8
 CALC_DICT_FREQ_THREADS = 8
 FREQ_EXPORT_FILE = "./dict-freq.json"
@@ -424,41 +428,66 @@ def main():
 			sorted_list = sorted_list + good_words[str(l)]
 		
 ################################################################################
+		start_time = time.time()
 		th_p = []
 		q_p = []
 
+
 		DEBUG_slice_sum2 = 0
-		for i in range(CALC_THREAD):
-			slice_start = int(i*len(sorted_list)/CALC_THREAD)
-			slice_end = int((i+1)*len(sorted_list)/CALC_THREAD)
+		
+		loop = 1
+		if (len(sorted_list) > CHUNK_SIZE):
+			loop = math.ceil(len(sorted_list) / CHUNK_SIZE)
+
+		#print("Len sorted list", len(sorted_list))
+		
+		start_time = time.time()
+		CREATED_THREAD = 0
+		for i in range(loop):
+			slice_start = int(i*CHUNK_SIZE)
+			slice_end = int((i+1)*CHUNK_SIZE)
+			
+			if(slice_end > len(sorted_list)):
+				slice_end = len(sorted_list)
 			DEBUG_sl_el = slice_end - slice_start
 			DEBUG_slice_sum2 = DEBUG_slice_sum2 + DEBUG_sl_el
 			
 			#print("Thread", i,": slice start", slice_start, "to end", slice_end)
 			
 			tmpq =  Queue()
-			th_p.append(threading.Thread(target=create_sent, args=(sorted_list, slice_start, slice_end, good_words, ANAGRAM_LEN, int_k, INPUT_FR, tmpq), name="Thread-"+str(i)))
+			myth = threading.Thread(target=create_sent, args=(sorted_list, slice_start, slice_end, good_words, ANAGRAM_LEN, int_k, INPUT_FR, tmpq), name="Thread-"+str(i))
+			th_p.append(myth)
 			q_p.append(tmpq)
+			myth.start()
+
+			CREATED_THREAD = CREATED_THREAD +1
+			
+			if ((CREATED_THREAD == CALC_THREAD) or (slice_end == len(sorted_list))):
+				w_time = time.time()
+				#print("THREAD LIMIT REACHED, WAITING...")
+				th_p[0].join()
+				CREATED_THREAD = CREATED_THREAD -1
+				th_p.pop(0)
+				#print("One thread left")
+				w_end = time.time()
+				total_wait = w_end - w_time
+				#print(f"Stalled for: {total_wait} seconds")
+				
 		
 		#print("DEBUG: sliced elemnts", DEBUG_slice_sum2)
 		#print("ORIGINAL SIZE", len(sorted_list))
-		start_time = time.time()
-		for t in th_p:
-			t.start()
-		
-		print("MAIN: waiting for", CALC_THREAD, "thread to leave")
-		left = 0
-		for t in th_p:
-			t.join()
-			left = left + 1
-			print("MAIN: thread still running = ", CALC_THREAD - left)
+
 			
 		print("MAIN: All thread left")
-
+		end_time = time.time()
+		elapsed_time = end_time - start_time
+		print(f"Elapsed time: {elapsed_time} seconds")
+		
 		out = []
 		for q in q_p:
 			out = out + q.get()
 		results = out
+		
 ################################################################################
 				
 		s_res = sorted(results, key=len, reverse=True)
