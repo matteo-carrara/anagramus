@@ -3,7 +3,9 @@ Quick anagram generator
 _by Matteo Carrara_
 
 # How to run
-Clone/download the repository, then you should run
+Download a compiled executable from [releases](https://github.com/matteo-carrara/anagramus/releases).
+
+If you want to run from source code, clone/download the repository, then you should run
 
 ```
  python .\anagram.py
@@ -12,7 +14,7 @@ Clone/download the repository, then you should run
 inside the same directory as *italiano.txt* since it will be loaded at run time (currentyly this program only supports italian words). 
 
 # Example
-![alt text for screen readers](./screen.png "").
+![alt text for screen readers](./screen.png "")
 
 # What is an anagram?
 Regarding this software, an anagram is defined as follows:
